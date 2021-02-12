@@ -1,4 +1,4 @@
-import {app, dialog} from 'electron';
+import {app, dialog, BrowserWindow, App} from 'electron';
 import {resolve, basename} from 'path';
 import {writeFileSync} from 'fs';
 import Config from 'electron-store';
@@ -11,6 +11,7 @@ import {availableExtensions} from './plugins/extensions';
 import {install} from './plugins/install';
 import {plugs} from './config/paths';
 import mapKeys from './utils/map-keys';
+import {configOptions} from '../lib/config';
 
 // local storage
 const cache = new Config();
@@ -26,11 +27,11 @@ let paths = getPaths();
 let id = getId(plugins);
 let modules = requirePlugins();
 
-function getId(plugins_) {
+function getId(plugins_: any) {
   return JSON.stringify(plugins_);
 }
 
-const watchers = [];
+const watchers: Function[] = [];
 
 // we listen on configuration updates to trigger
 // plugin installation
@@ -48,11 +49,12 @@ config.subscribe(() => {
 
 // patching Module._load
 // so plugins can `require` them without needing their own version
-// https://github.com/zeit/hyper/issues/619
+// https://github.com/vercel/hyper/issues/619
 function patchModuleLoad() {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const Module = require('module');
   const originalLoad = Module._load;
-  Module._load = function _load(modulePath) {
+  Module._load = function _load(modulePath: string) {
     // PLEASE NOTE: Code changes here, also need to be changed in
     // lib/utils/plugins.js
     switch (modulePath) {
@@ -72,13 +74,14 @@ function patchModuleLoad() {
       case 'hyper/decorate':
         return Object;
       default:
+        // eslint-disable-next-line prefer-rest-params
         return originalLoad.apply(this, arguments);
     }
   };
 }
 
 function checkDeprecatedExtendKeymaps() {
-  modules.forEach(plugin => {
+  modules.forEach((plugin) => {
     if (plugin.extendKeymaps) {
       notify('Plugin warning!', `"${plugin._name}" use deprecated "extendKeymaps" handler`);
       return;
@@ -95,11 +98,10 @@ function updatePlugins({force = false} = {}) {
   updating = true;
   syncPackageJSON();
   const id_ = id;
-  install(err => {
+  install((err: any) => {
     updating = false;
 
     if (err) {
-      //eslint-disable-next-line no-console
       notify('Error updating plugins.', err, {error: err});
     } else {
       // flag successful plugin update
@@ -121,7 +123,7 @@ function updatePlugins({force = false} = {}) {
       cache.set('hyper.plugin-versions', pluginVersions);
 
       // notify watchers
-      watchers.forEach(fn => fn(err, {force}));
+      watchers.forEach((fn) => fn(err, {force}));
 
       if (force || changed) {
         if (changed) {
@@ -137,9 +139,10 @@ function updatePlugins({force = false} = {}) {
 
 function getPluginVersions() {
   const paths_ = paths.plugins.concat(paths.localPlugins);
-  return paths_.map(path_ => {
+  return paths_.map((path_) => {
     let version = null;
     try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       version = require(resolve(path_, 'package.json')).version;
       //eslint-disable-next-line no-empty
     } catch (err) {}
@@ -149,7 +152,7 @@ function getPluginVersions() {
 
 function clearCache() {
   // trigger unload hooks
-  modules.forEach(mod => {
+  modules.forEach((mod) => {
     if (mod.onUnload) {
       mod.onUnload(app);
     }
@@ -166,7 +169,7 @@ function clearCache() {
 export {updatePlugins};
 
 export const getLoadedPluginVersions = () => {
-  return modules.map(mod => ({name: mod._name, version: mod._version}));
+  return modules.map((mod) => ({name: mod._name, version: mod._version}));
 };
 
 // we schedule the initial plugins update
@@ -174,7 +177,6 @@ export const getLoadedPluginVersions = () => {
 // to prevent slowness
 if (cache.get('hyper.plugins') !== id || process.env.HYPER_FORCE_UPDATE) {
   // install immediately if the user changed plugins
-  //eslint-disable-next-line no-console
   console.log('plugins have changed / not init, scheduling plugins installation');
   setTimeout(() => {
     updatePlugins();
@@ -196,7 +198,7 @@ function syncPackageJSON() {
     description: 'Auto-generated from `~/.hyper.js`!',
     private: true,
     version: '0.0.1',
-    repository: 'zeit/hyper',
+    repository: 'vercel/hyper',
     license: 'MIT',
     homepage: 'https://hyper.is',
     dependencies
@@ -210,16 +212,16 @@ function syncPackageJSON() {
   }
 }
 
-function alert(message) {
+function alert(message: string) {
   dialog.showMessageBox({
     message,
     buttons: ['Ok']
   });
 }
 
-function toDependencies(plugins_) {
-  const obj = {};
-  plugins_.plugins.forEach(plugin => {
+function toDependencies(plugins_: {plugins: string[]}) {
+  const obj: Record<string, string> = {};
+  plugins_.plugins.forEach((plugin) => {
     const regex = /.(@|#)/;
     const match = regex.exec(plugin);
 
@@ -237,7 +239,7 @@ function toDependencies(plugins_) {
   return obj;
 }
 
-export const subscribe = fn => {
+export const subscribe = (fn: Function) => {
   watchers.push(fn);
   return () => {
     watchers.splice(watchers.indexOf(fn), 1);
@@ -246,10 +248,10 @@ export const subscribe = fn => {
 
 function getPaths() {
   return {
-    plugins: plugins.plugins.map(name => {
+    plugins: plugins.plugins.map((name) => {
       return resolve(path, 'node_modules', name.split('#')[0]);
     }),
-    localPlugins: plugins.localPlugins.map(name => {
+    localPlugins: plugins.localPlugins.map((name) => {
       return resolve(localPath, name);
     })
   };
@@ -263,14 +265,14 @@ export const getBasePaths = () => {
   return {path, localPath};
 };
 
-function requirePlugins() {
+function requirePlugins(): any[] {
   const {plugins: plugins_, localPlugins} = paths;
 
-  const load = path_ => {
-    let mod;
+  const load = (path_: string) => {
+    let mod: any;
     try {
       mod = require(path_);
-      const exposed = mod && Object.keys(mod).some(key => availableExtensions.has(key));
+      const exposed = mod && Object.keys(mod).some((key) => availableExtensions.has(key));
       if (!exposed) {
         notify('Plugin error!', `${`Plugin "${basename(path_)}" does not expose any `}Hyper extension API methods`);
         return;
@@ -279,18 +281,16 @@ function requirePlugins() {
       // populate the name for internal errors here
       mod._name = basename(path_);
       try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         mod._version = require(resolve(path_, 'package.json')).version;
       } catch (err) {
-        //eslint-disable-next-line no-console
         console.warn(`No package.json found in ${path_}`);
       }
-      //eslint-disable-next-line no-console
       console.log(`Plugin ${mod._name} (${mod._version}) loaded.`);
 
       return mod;
     } catch (err) {
       if (err.code === 'MODULE_NOT_FOUND') {
-        //eslint-disable-next-line no-console
         console.warn(`Plugin error while loading "${basename(path_)}" (${path_}): ${err.message}`);
       } else {
         notify('Plugin error!', `Plugin "${basename(path_)}" failed to load (${err.message})`, {error: err});
@@ -301,11 +301,11 @@ function requirePlugins() {
   return plugins_
     .map(load)
     .concat(localPlugins.map(load))
-    .filter(v => Boolean(v));
+    .filter((v) => Boolean(v));
 }
 
-export const onApp = app_ => {
-  modules.forEach(plugin => {
+export const onApp = (app_: App) => {
+  modules.forEach((plugin) => {
     if (plugin.onApp) {
       try {
         plugin.onApp(app_);
@@ -318,8 +318,8 @@ export const onApp = app_ => {
   });
 };
 
-export const onWindowClass = win => {
-  modules.forEach(plugin => {
+export const onWindowClass = (win: BrowserWindow) => {
+  modules.forEach((plugin) => {
     if (plugin.onWindowClass) {
       try {
         plugin.onWindowClass(win);
@@ -332,8 +332,8 @@ export const onWindowClass = win => {
   });
 };
 
-export const onWindow = win => {
-  modules.forEach(plugin => {
+export const onWindow = (win: BrowserWindow) => {
+  modules.forEach((plugin) => {
     if (plugin.onWindow) {
       try {
         plugin.onWindow(win);
@@ -348,9 +348,9 @@ export const onWindow = win => {
 
 // decorates the base entity by calling plugin[key]
 // for all the available plugins
-function decorateEntity(base, key, type) {
+function decorateEntity(base: any, key: string, type: 'object' | 'function') {
   let decorated = base;
-  modules.forEach(plugin => {
+  modules.forEach((plugin) => {
     if (plugin[key]) {
       let res;
       try {
@@ -370,23 +370,23 @@ function decorateEntity(base, key, type) {
   return decorated;
 }
 
-function decorateObject(base, key) {
+function decorateObject<T>(base: T, key: string): T {
   return decorateEntity(base, key, 'object');
 }
 
-function decorateClass(base, key) {
+function decorateClass(base: any, key: string) {
   return decorateEntity(base, key, 'function');
 }
 
 export const getDeprecatedConfig = () => {
-  const deprecated = {};
+  const deprecated: Record<string, {css: string[]}> = {};
   const baseConfig = config.getConfig();
-  modules.forEach(plugin => {
+  modules.forEach((plugin) => {
     if (!plugin.decorateConfig) {
       return;
     }
     // We need to clone config in case of plugin modifies config directly.
-    let configTmp;
+    let configTmp: configOptions;
     try {
       configTmp = plugin.decorateConfig(JSON.parse(JSON.stringify(baseConfig)));
     } catch (e) {
@@ -404,11 +404,11 @@ export const getDeprecatedConfig = () => {
   return deprecated;
 };
 
-export const decorateMenu = tpl => {
+export const decorateMenu = (tpl: any) => {
   return decorateObject(tpl, 'decorateMenu');
 };
 
-export const getDecoratedEnv = baseEnv => {
+export const getDecoratedEnv = (baseEnv: Record<string, string>) => {
   return decorateObject(baseEnv, 'decorateEnv');
 };
 
@@ -427,19 +427,19 @@ export const getDecoratedKeymaps = () => {
   return decoratedKeymaps;
 };
 
-export const getDecoratedBrowserOptions = defaults => {
+export const getDecoratedBrowserOptions = <T>(defaults: T): T => {
   return decorateObject(defaults, 'decorateBrowserOptions');
 };
 
-export const decorateWindowClass = defaults => {
+export const decorateWindowClass = <T>(defaults: T): T => {
   return decorateObject(defaults, 'decorateWindowClass');
 };
 
-export const decorateSessionOptions = defaults => {
+export const decorateSessionOptions = <T>(defaults: T): T => {
   return decorateObject(defaults, 'decorateSessionOptions');
 };
 
-export const decorateSessionClass = Session => {
+export const decorateSessionClass = <T>(Session: T): T => {
   return decorateClass(Session, 'decorateSessionClass');
 };
 

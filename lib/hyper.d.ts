@@ -1,10 +1,11 @@
 import {Immutable} from 'seamless-immutable';
+import Client from './utils/rpc';
 
 declare global {
   interface Window {
     __rpcId: string;
-    rpc: any;
-    focusActiveTerm: any;
+    rpc: Client;
+    focusActiveTerm: (uid?: string) => void;
   }
 }
 
@@ -12,7 +13,7 @@ export type ITermGroup = {
   uid: string;
   sessionUid: string | null;
   parentUid: string | null;
-  direction: string | null;
+  direction: 'HORIZONTAL' | 'VERTICAL' | null;
   sizes: number[] | null;
   children: string[];
 };
@@ -24,6 +25,9 @@ export type ITermState = {
   activeSessions: Record<string, string>;
   activeRootGroup: string | null;
 };
+
+export type cursorShapes = 'BEAM' | 'UNDERLINE' | 'BLOCK';
+import {FontWeight, Terminal} from 'xterm';
 
 export type uiState = {
   _lastUpdate: number | null;
@@ -58,15 +62,15 @@ export type uiState = {
   cursorAccentColor: string;
   cursorBlink: boolean;
   cursorColor: string;
-  cursorShape: string;
+  cursorShape: cursorShapes;
   cwd?: string;
   disableLigatures: boolean;
   fontFamily: string;
   fontSize: number;
   fontSizeOverride: null | number;
   fontSmoothingOverride: string;
-  fontWeight: string;
-  fontWeightBold: string;
+  fontWeight: FontWeight;
+  fontWeightBold: FontWeight;
   foregroundColor: string;
   fullScreen: boolean;
   letterSpacing: number;
@@ -93,7 +97,7 @@ export type uiState = {
   rows: number | null;
   scrollback: number;
   selectionColor: string;
-  showHamburgerMenu: string;
+  showHamburgerMenu: boolean | '';
   showWindowControls: string;
   termCSS: string;
   uiFontFamily: string;
@@ -102,6 +106,7 @@ export type uiState = {
   updateReleaseUrl: string | null;
   updateVersion: string | null;
   webGLRenderer: boolean;
+  webLinksActivationKey: string;
 };
 
 export type session = {
@@ -115,7 +120,7 @@ export type session = {
   title: string;
   uid: string;
   url: string | null;
-  splitDirection?: string;
+  splitDirection?: 'HORIZONTAL' | 'VERTICAL';
   activeUid?: string;
 };
 export type sessionState = {
@@ -133,6 +138,7 @@ import {IUiReducer} from './reducers/ui';
 export {ISessionReducer} from './reducers/sessions';
 import {ISessionReducer} from './reducers/sessions';
 
+import {Middleware} from 'redux';
 export type hyperPlugin = {
   getTabProps: any;
   getTabsProps: any;
@@ -148,7 +154,8 @@ export type hyperPlugin = {
   mapHyperTermState: any;
   mapNotificationsState: any;
   mapTermsState: any;
-  middleware: any;
+  middleware: Middleware;
+  onRendererUnload: any;
   onRendererWindow: any;
   reduceSessions: ISessionReducer;
   reduceTermGroups: ITermGroupReducer;
@@ -185,44 +192,190 @@ import configureStore from './store/configure-store';
 export type HyperThunkDispatch = ThunkDispatch<HyperState, undefined, HyperActions>;
 export type HyperDispatch = ReturnType<typeof configureStore>['dispatch'];
 
-export type TermsProps = {
-  activeRootGroup: string | null;
-  activeSession: string | null;
+import {ReactChild} from 'react';
+type extensionProps = Partial<{
+  customChildren: ReactChild | ReactChild[];
+  customChildrenBefore: ReactChild | ReactChild[];
   customCSS: string;
-  fontSmoothing: string;
-  termGroups: Immutable<ITermGroup>[];
-} & immutableRecord<
-  Pick<
-    uiState,
-    | 'backgroundColor'
-    | 'bell'
-    | 'bellSound'
-    | 'bellSoundURL'
-    | 'borderColor'
-    | 'colors'
-    | 'cols'
-    | 'copyOnSelect'
-    | 'cursorAccentColor'
-    | 'cursorBlink'
-    | 'cursorColor'
-    | 'cursorShape'
-    | 'disableLigatures'
-    | 'fontFamily'
-    | 'fontSize'
-    | 'fontWeight'
-    | 'fontWeightBold'
-    | 'foregroundColor'
-    | 'letterSpacing'
-    | 'lineHeight'
-    | 'macOptionSelectionMode'
-    | 'modifierKeys'
-    | 'padding'
-    | 'quickEdit'
-    | 'rows'
-    | 'scrollback'
-    | 'selectionColor'
-    | 'uiFontFamily'
-    | 'webGLRenderer'
-  >
-> &
-  immutableRecord<Pick<sessionState, 'sessions' | 'write'>>;
+  customInnerChildren: ReactChild | ReactChild[];
+}>;
+
+import {HeaderConnectedProps} from './containers/header';
+export type HeaderProps = HeaderConnectedProps & extensionProps;
+
+import {HyperConnectedProps} from './containers/hyper';
+export type HyperProps = HyperConnectedProps & extensionProps;
+
+import {NotificationsConnectedProps} from './containers/notifications';
+export type NotificationsProps = NotificationsConnectedProps & extensionProps;
+
+import Terms from './components/terms';
+import {TermsConnectedProps} from './containers/terms';
+export type TermsProps = TermsConnectedProps & extensionProps & {ref_: (terms: Terms | null) => void};
+
+export type StyleSheetProps = {
+  backgroundColor: string;
+  borderColor: string;
+  fontFamily: string;
+  foregroundColor: string;
+} & extensionProps;
+
+export type TabProps = {
+  borderColor: string;
+  hasActivity: boolean;
+  isActive: boolean;
+  isFirst: boolean;
+  isLast: boolean;
+  onClick?: (event: React.MouseEvent<HTMLElement, MouseEvent>) => void;
+  onClose: () => void;
+  onSelect: () => void;
+  text: string;
+} & extensionProps;
+
+export type ITab = {
+  uid: string;
+  title: string;
+  isActive: boolean;
+  hasActivity: boolean;
+};
+
+export type TabsProps = {
+  tabs: ITab[];
+  borderColor: string;
+  onChange: (uid: string) => void;
+  onClose: (uid: string) => void;
+  fullScreen: boolean;
+} & extensionProps;
+
+export type NotificationProps = {
+  backgroundColor: string;
+  color?: string;
+  dismissAfter?: number;
+  onDismiss: Function;
+  text?: string | null;
+  userDismissable?: boolean | null;
+  userDismissColor?: string;
+} & extensionProps;
+
+export type NotificationState = {
+  dismissing: boolean;
+};
+
+export type SplitPaneProps = {
+  borderColor: string;
+  direction: 'horizontal' | 'vertical';
+  onResize: Function;
+  sizes?: Immutable<number[]> | null;
+};
+
+import Term from './components/term';
+
+export type TermGroupOwnProps = {
+  cursorAccentColor?: string;
+  fontSmoothing?: string;
+  parentProps: TermsProps;
+  ref_: (uid: string, term: Term | null) => void;
+  termGroup: Immutable<ITermGroup>;
+  terms: Record<string, Term | null>;
+} & Pick<
+  TermsProps,
+  | 'activeSession'
+  | 'backgroundColor'
+  | 'bell'
+  | 'bellSound'
+  | 'bellSoundURL'
+  | 'borderColor'
+  | 'colors'
+  | 'copyOnSelect'
+  | 'cursorBlink'
+  | 'cursorColor'
+  | 'cursorShape'
+  | 'disableLigatures'
+  | 'fontFamily'
+  | 'fontSize'
+  | 'fontWeight'
+  | 'fontWeightBold'
+  | 'foregroundColor'
+  | 'letterSpacing'
+  | 'lineHeight'
+  | 'macOptionSelectionMode'
+  | 'modifierKeys'
+  | 'onActive'
+  | 'onContextMenu'
+  | 'onData'
+  | 'onResize'
+  | 'onTitle'
+  | 'padding'
+  | 'quickEdit'
+  | 'scrollback'
+  | 'selectionColor'
+  | 'sessions'
+  | 'toggleSearch'
+  | 'uiFontFamily'
+  | 'webGLRenderer'
+  | 'webLinksActivationKey'
+>;
+
+import {TermGroupConnectedProps} from './components/term-group';
+export type TermGroupProps = TermGroupConnectedProps & TermGroupOwnProps;
+
+export type SearchBoxProps = {
+  search: (searchTerm: string) => void;
+  next: (searchTerm: string) => void;
+  prev: (searchTerm: string) => void;
+  close: () => void;
+};
+
+import {FitAddon} from 'xterm-addon-fit';
+import {SearchAddon} from 'xterm-addon-search';
+export type TermProps = {
+  backgroundColor: string;
+  bell: string;
+  bellSound: string | null;
+  bellSoundURL: string | null;
+  borderColor: string;
+  cleared: boolean;
+  colors: uiState['colors'];
+  cols: number | null;
+  copyOnSelect: boolean;
+  cursorAccentColor?: string;
+  cursorBlink: boolean;
+  cursorColor: string;
+  cursorShape: cursorShapes;
+  disableLigatures: boolean;
+  fitAddon: FitAddon | null;
+  fontFamily: string;
+  fontSize: number;
+  fontSmoothing?: string;
+  fontWeight: FontWeight;
+  fontWeightBold: FontWeight;
+  foregroundColor: string;
+  isTermActive: boolean;
+  letterSpacing: number;
+  lineHeight: number;
+  macOptionSelectionMode: string;
+  modifierKeys: Immutable<{altIsMeta: boolean; cmdIsMeta: boolean}>;
+  onActive: () => void;
+  onContextMenu: (selection: any) => void;
+  onCursorMove?: (cursorFrame: {x: number; y: number; width: number; height: number; col: number; row: number}) => void;
+  onData: (data: string) => void;
+  onResize: (cols: number, rows: number) => void;
+  onTitle: (title: string) => void;
+  padding: string;
+  quickEdit: boolean;
+  rows: number | null;
+  scrollback: number;
+  search: boolean;
+  searchAddon: SearchAddon | null;
+  selectionColor: string;
+  term: Terminal | null;
+  toggleSearch: () => void;
+  uid: string;
+  uiFontFamily: string;
+  url: string | null;
+  webGLRenderer: boolean;
+  webLinksActivationKey: string;
+  ref_: (uid: string, term: Term | null) => void;
+} & extensionProps;
+
+export type Assignable<T, U> = {[k in keyof U]: k extends keyof T ? T[k] : U[k]} & Partial<T>;

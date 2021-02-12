@@ -1,12 +1,24 @@
-![](https://assets.zeit.co/image/upload/v1549723846/repositories/hyper/hyper-3-repo-banner.png)
+![](https://assets.vercel.com/image/upload/v1549723846/repositories/hyper/hyper-3-repo-banner.png)
 
-[![macOS CI Status](https://circleci.com/gh/zeit/hyper.svg?style=shield)](https://circleci.com/gh/zeit/hyper)
+<p align="center">
+  <a aria-label="Vercel logo" href="https://vercel.com">
+    <img src="https://img.shields.io/badge/MADE%20BY%20Vercel-000000.svg?style=for-the-badge&logo=vercel&labelColor=000000&logoWidth=20">
+  </a>
+ </p>
+  
+[![Node CI](https://github.com/vercel/hyper/workflows/Node%20CI/badge.svg?event=push)](https://github.com/vercel/hyper/actions?query=workflow%3A%22Node+CI%22+branch%3Acanary+event%3Apush)
+[![macOS CI Status](https://circleci.com/gh/vercel/hyper.svg?style=shield)](https://circleci.com/gh/vercel/hyper)
 [![Windows CI status](https://ci.appveyor.com/api/projects/status/kqvb4oa772an58sc?svg=true)](https://ci.appveyor.com/project/zeit/hyper)
-[![Linux CI status](https://travis-ci.org/zeit/hyper.svg?branch=master)](https://travis-ci.org/zeit/hyper)
+[![Linux CI status](https://travis-ci.org/vercel/hyper.svg?branch=master)](https://travis-ci.org/vercel/hyper)
 [![Changelog #213](https://img.shields.io/badge/changelog-%23213-lightgrey.svg)](https://changelog.com/213)
-[![Join the community on Spectrum](https://withspectrum.github.io/badge/badge.svg)](https://spectrum.chat/zeit/hyper)
 
 For more details, head to: https://hyper.is
+
+## Project goals
+
+The goal of the project is to create a beautiful and extensible experience for command-line interface users, built on open web standards. In the beginning, our focus will be primarily around speed, stability and the development of the correct API for extension authors.
+
+In the future, we anticipate the community will come up with innovative additions to enhance what could be the simplest, most powerful and well-tested interface for productivity.
 
 ## Usage
 
@@ -20,13 +32,20 @@ Hyper is available in the [AUR](https://aur.archlinux.org/packages/hyper/). Use 
 aurman -S hyper
 ```
 
+#### NixOS
+Hyper is available as [Nix package](https://github.com/NixOS/nixpkgs/blob/master/pkgs/applications/misc/hyper/default.nix), to install the app run this command:
+
+```sh
+nix-env -i hyper
+```
+
 ### macOS
 
 Use [Homebrew Cask](https://brew.sh) to download the app by running these commands:
 
 ```bash
 brew update
-brew cask install hyper
+brew install --cask hyper
 ```
 
 ### Windows
@@ -94,8 +113,8 @@ If you have issues in the `codesign` step when running `yarn run dist` on macOS,
 
 ## Related Repositories
 
-- [Art](https://github.com/zeit/art/tree/master/hyper)
-- [Website](https://github.com/zeit/hyper-site)
-- [Sample Extension](https://github.com/zeit/hyperpower)
-- [Sample Theme](https://github.com/zeit/hyperyellow)
+- [Art](https://github.com/vercel/art/tree/master/hyper)
+- [Website](https://github.com/vercel/hyper-site)
+- [Sample Extension](https://github.com/vercel/hyperpower)
+- [Sample Theme](https://github.com/vercel/hyperyellow)
 - [Awesome Hyper](https://github.com/bnb/awesome-hyper)

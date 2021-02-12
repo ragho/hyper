@@ -1,27 +1,12 @@
 import React from 'react';
+import {TabProps} from '../hyper';
 
-export default class Tab extends React.PureComponent {
-  constructor() {
-    super();
-
-    this.state = {
-      hovered: false
-    };
+export default class Tab extends React.PureComponent<TabProps> {
+  constructor(props: TabProps) {
+    super(props);
   }
 
-  handleHover = () => {
-    this.setState({
-      hovered: true
-    });
-  };
-
-  handleBlur = () => {
-    this.setState({
-      hovered: false
-    });
-  };
-
-  handleClick = event => {
+  handleClick = (event: React.MouseEvent) => {
     const isLeftClick = event.nativeEvent.which === 1;
 
     if (isLeftClick && !this.props.isActive) {
@@ -29,7 +14,7 @@ export default class Tab extends React.PureComponent {
     }
   };
 
-  handleMouseUp = event => {
+  handleMouseUp = (event: React.MouseEvent) => {
     const isMiddleClick = event.nativeEvent.which === 2;
 
     if (isMiddleClick) {
@@ -39,13 +24,10 @@ export default class Tab extends React.PureComponent {
 
   render() {
     const {isActive, isFirst, isLast, borderColor, hasActivity} = this.props;
-    const {hovered} = this.state;
 
     return (
       <React.Fragment>
         <li
-          onMouseEnter={this.handleHover}
-          onMouseLeave={this.handleBlur}
           onClick={this.props.onClick}
           style={{borderColor}}
           className={`tab_tab ${isFirst ? 'tab_first' : ''} ${isActive ? 'tab_active' : ''} ${
@@ -62,7 +44,7 @@ export default class Tab extends React.PureComponent {
               {this.props.text}
             </span>
           </span>
-          <i className={`tab_icon ${hovered ? 'tab_iconHovered' : ''}`} onClick={this.props.onClose}>
+          <i className="tab_icon" onClick={this.props.onClose}>
             <svg className="tab_shape">
               <use xlinkHref="./renderer/assets/icons.svg#close-tab" />
             </svg>
@@ -159,7 +141,7 @@ export default class Tab extends React.PureComponent {
             color: #909090;
           }
 
-          .tab_iconHovered {
+          .tab_tab:hover .tab_icon {
             opacity: 1;
             transform: none;
             pointer-events: all;

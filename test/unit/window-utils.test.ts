@@ -1,7 +1,8 @@
 import test from 'ava';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const proxyquire = require('proxyquire').noCallThru();
 
-test('positionIsValid() returns true when window is on only screen', t => {
+test('positionIsValid() returns true when window is on only screen', (t) => {
   const position = [50, 50];
   const windowUtils = proxyquire('../../app/utils/window-utils', {
     electron: {
@@ -27,7 +28,7 @@ test('positionIsValid() returns true when window is on only screen', t => {
   t.true(result);
 });
 
-test('positionIsValid() returns true when window is on second screen', t => {
+test('positionIsValid() returns true when window is on second screen', (t) => {
   const position = [750, 50];
   const windowUtils = proxyquire('../../app/utils/window-utils', {
     electron: {
@@ -61,7 +62,7 @@ test('positionIsValid() returns true when window is on second screen', t => {
   t.true(result);
 });
 
-test('positionIsValid() returns false when position isnt valid', t => {
+test('positionIsValid() returns false when position isnt valid', (t) => {
   const primaryDisplay = {
     workArea: {
       x: 0,

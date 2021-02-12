@@ -57,7 +57,7 @@ const initial: ImmutableType<uiState> = Immutable({
   letterSpacing: 0,
   css: '',
   termCSS: '',
-  openAt: {},
+  openAt: {} as Record<string, number>,
   resizeAt: 0,
   colors: {
     black: '#000000',
@@ -77,7 +77,7 @@ const initial: ImmutableType<uiState> = Immutable({
     lightCyan: '#68FDFE',
     lightWhite: '#FFFFFF'
   },
-  activityMarkers: {},
+  activityMarkers: {} as Record<string, boolean>,
   notifications: {
     font: false,
     resize: false,
@@ -108,6 +108,7 @@ const initial: ImmutableType<uiState> = Immutable({
   showWindowControls: '',
   quickEdit: false,
   webGLRenderer: true,
+  webLinksActivationKey: '',
   macOptionSelectionMode: 'vertical',
   disableLigatures: false
 });
@@ -117,10 +118,8 @@ const currentWindow = remote.getCurrentWindow();
 const reducer = (state = initial, action: HyperActions) => {
   let state_ = state;
   let isMax;
-  //eslint-disable-next-line default-case
   switch (action.type) {
     case CONFIG_LOAD:
-    // eslint-disable-next-line no-case-declarations, no-fallthrough
     case CONFIG_RELOAD: {
       const {config, now} = action;
       state_ = state
@@ -240,7 +239,7 @@ const reducer = (state = initial, action: HyperActions) => {
               ret.modifierKeys = config.modifierKeys;
             }
 
-            if (allowedHamburgerMenuValues.has(config.showHamburgerMenu)) {
+            if (allowedHamburgerMenuValues.has(config.showHamburgerMenu as any)) {
               ret.showHamburgerMenu = config.showHamburgerMenu;
             }
 
@@ -256,6 +255,10 @@ const reducer = (state = initial, action: HyperActions) => {
 
             if (config.webGLRenderer !== undefined) {
               ret.webGLRenderer = config.webGLRenderer;
+            }
+
+            if (config.webLinksActivationKey !== undefined) {
+              ret.webLinksActivationKey = config.webLinksActivationKey;
             }
 
             if (config.macOptionSelectionMode) {
@@ -325,7 +328,6 @@ const reducer = (state = initial, action: HyperActions) => {
       );
       break;
 
-    // eslint-disable-next-line no-case-declarations
     case SESSION_PTY_DATA:
       // ignore activity markers for current tab
       if (action.uid === state.activeUid) {

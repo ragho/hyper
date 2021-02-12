@@ -2,16 +2,18 @@ import {EventEmitter} from 'events';
 import {StringDecoder} from 'string_decoder';
 import defaultShell from 'default-shell';
 import {getDecoratedEnv} from './plugins';
-import {productName, version} from './package';
+import {productName, version} from './package.json';
 import * as config from './config';
+import {IPty, IWindowsPtyForkOptions, spawn as npSpawn} from 'node-pty';
 
 const createNodePtyError = () =>
   new Error(
     '`node-pty` failed to load. Typically this means that it was built incorrectly. Please check the `readme.md` to more info.'
   );
 
-let spawn;
+let spawn: typeof npSpawn;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   spawn = require('node-pty').spawn;
 } catch (err) {
   throw createNodePtyError();
@@ -33,7 +35,11 @@ const BATCH_MAX_SIZE = 200 * 1024;
 // with the window ID which is then stripped on the renderer process and this
 // overhead is reduced with batching.
 class DataBatcher extends EventEmitter {
-  constructor(uid) {
+  uid: string;
+  decoder: StringDecoder;
+  data!: string;
+  timeout!: NodeJS.Timeout | null;
+  constructor(uid: string) {
     super();
     this.uid = uid;
     this.decoder = new StringDecoder('utf8');
@@ -46,7 +52,7 @@ class DataBatcher extends EventEmitter {
     this.timeout = null;
   }
 
-  write(chunk) {
+  write(chunk: Buffer) {
     if (this.data.length + chunk.length >= BATCH_MAX_SIZE) {
       // We've reached the max batch size. Flush it and start another one
       if (this.timeout) {
@@ -72,18 +78,33 @@ class DataBatcher extends EventEmitter {
   }
 }
 
+interface SessionOptions {
+  uid: string;
+  rows: number;
+  cols: number;
+  cwd: string;
+  shell: string;
+  shellArgs: string[];
+}
 export default class Session extends EventEmitter {
-  constructor(options) {
+  pty: IPty | null;
+  batcher: DataBatcher | null;
+  shell: string | null;
+  ended: boolean;
+  initTimestamp: number;
+  constructor(options: SessionOptions) {
     super();
     this.pty = null;
     this.batcher = null;
     this.shell = null;
     this.ended = false;
+    this.initTimestamp = new Date().getTime();
     this.init(options);
   }
 
-  init({uid, rows, cols: columns, cwd, shell, shellArgs}) {
-    const osLocale = require('os-locale');
+  init({uid, rows, cols: columns, cwd, shell: _shell, shellArgs: _shellArgs}: SessionOptions) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const osLocale = require('os-locale') as typeof import('os-locale');
     const baseEnv = Object.assign(
       {},
       process.env,
@@ -99,14 +120,14 @@ export default class Session extends EventEmitter {
 
     // Electron has a default value for process.env.GOOGLE_API_KEY
     // We don't want to leak this to the shell
-    // See https://github.com/zeit/hyper/issues/696
+    // See https://github.com/vercel/hyper/issues/696
     if (baseEnv.GOOGLE_API_KEY && process.env.GOOGLE_API_KEY === baseEnv.GOOGLE_API_KEY) {
       delete baseEnv.GOOGLE_API_KEY;
     }
 
     const defaultShellArgs = ['--login'];
 
-    const options = {
+    const options: IWindowsPtyForkOptions = {
       cols: columns,
       rows,
       cwd,
@@ -118,8 +139,11 @@ export default class Session extends EventEmitter {
       options.useConpty = useConpty;
     }
 
+    const shell = _shell || defaultShell;
+    const shellArgs = _shellArgs || defaultShellArgs;
+
     try {
-      this.pty = spawn(shell || defaultShell, shellArgs || defaultShellArgs, options);
+      this.pty = spawn(shell, shellArgs, options);
     } catch (err) {
       if (/is not a function/.test(err.message)) {
         throw createNodePtyError();
@@ -129,50 +153,62 @@ export default class Session extends EventEmitter {
     }
 
     this.batcher = new DataBatcher(uid);
-    this.pty.onData(chunk => {
+    this.pty.onData((chunk) => {
       if (this.ended) {
         return;
       }
-      this.batcher.write(chunk);
+      this.batcher?.write(chunk as any);
     });
 
-    this.batcher.on('flush', data => {
+    this.batcher.on('flush', (data: string) => {
       this.emit('data', data);
     });
 
-    this.pty.onExit(() => {
+    this.pty.onExit((e) => {
       if (!this.ended) {
-        this.ended = true;
-        this.emit('exit');
+        // fall back to default shell config if the shell exits within 1 sec with non zero exit code
+        // this will inform users in case there are errors in the config instead of instant exit
+        const runDuration = new Date().getTime() - this.initTimestamp;
+        if (e.exitCode > 0 && runDuration < 1000) {
+          const defaultShellConfig = {shell: defaultShell, shellArgs: defaultShellArgs};
+          const msg = `
+shell exited in ${runDuration} ms with exit code ${e.exitCode}
+please check the shell config: ${JSON.stringify({shell, shellArgs}, undefined, 2)}
+fallback to default shell config: ${JSON.stringify(defaultShellConfig, undefined, 2)}
+`;
+          console.warn(msg);
+          this.batcher?.write(msg.replaceAll('\n', '\r\n') as any);
+          this.init({uid, rows, cols: columns, cwd, ...defaultShellConfig});
+        } else {
+          this.ended = true;
+          this.emit('exit');
+        }
       }
     });
 
-    this.shell = shell || defaultShell;
+    this.shell = shell;
   }
 
   exit() {
     this.destroy();
   }
 
-  write(data) {
+  write(data: string) {
     if (this.pty) {
       this.pty.write(data);
     } else {
-      //eslint-disable-next-line no-console
       console.warn('Warning: Attempted to write to a session with no pty');
     }
   }
 
-  resize({cols, rows}) {
+  resize({cols, rows}: {cols: number; rows: number}) {
     if (this.pty) {
       try {
         this.pty.resize(cols, rows);
       } catch (err) {
-        //eslint-disable-next-line no-console
         console.error(err.stack);
       }
     } else {
-      //eslint-disable-next-line no-console
       console.warn('Warning: Attempted to resize a session with no pty');
     }
   }
@@ -182,11 +218,9 @@ export default class Session extends EventEmitter {
       try {
         this.pty.kill();
       } catch (err) {
-        //eslint-disable-next-line no-console
         console.error('exit error', err.stack);
       }
     } else {
-      //eslint-disable-next-line no-console
       console.warn('Warning: Attempted to destroy a session with no pty');
     }
     this.emit('exit');

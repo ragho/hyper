@@ -1,7 +1,8 @@
 import fetch from 'electron-fetch';
 import {EventEmitter} from 'events';
 
-class AutoUpdater extends EventEmitter {
+class AutoUpdater extends EventEmitter implements Electron.AutoUpdater {
+  updateURL!: string;
   quitAndInstall() {
     this.emitError('QuitAndInstall unimplemented');
   }
@@ -9,8 +10,8 @@ class AutoUpdater extends EventEmitter {
     return this.updateURL;
   }
 
-  setFeedURL(updateURL) {
-    this.updateURL = updateURL;
+  setFeedURL(options: Electron.FeedURLOptions) {
+    this.updateURL = options.url;
   }
 
   checkForUpdates() {
@@ -20,9 +21,10 @@ class AutoUpdater extends EventEmitter {
     this.emit('checking-for-update');
 
     fetch(this.updateURL)
-      .then(res => {
+      .then((res) => {
         if (res.status === 204) {
-          return this.emit('update-not-available');
+          this.emit('update-not-available');
+          return;
         }
         return res.json().then(({name, notes, pub_date}) => {
           // Only name is mandatory, needed to construct release URL.
@@ -37,11 +39,11 @@ class AutoUpdater extends EventEmitter {
       .catch(this.emitError.bind(this));
   }
 
-  emitError(error) {
+  emitError(error: string | Error) {
     if (typeof error === 'string') {
       error = new Error(error);
     }
-    this.emit('error', error, error.message);
+    this.emit('error', error);
   }
 }
 

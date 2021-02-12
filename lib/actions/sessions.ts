@@ -50,7 +50,7 @@ export function requestSession() {
   };
 }
 
-export function addSessionData(uid: string, data: any) {
+export function addSessionData(uid: string, data: string) {
   return (dispatch: HyperDispatch) => {
     dispatch({
       type: SESSION_ADD_DATA,
@@ -145,17 +145,23 @@ export function onSearch(uid?: string) {
   };
 }
 
-export function closeSearch(uid?: string) {
+export function closeSearch(uid?: string, keyEvent?: any) {
   return (dispatch: HyperDispatch, getState: () => HyperState) => {
     const targetUid = uid || getState().sessions.activeUid!;
-    dispatch({
-      type: SESSION_SEARCH_CLOSE,
-      uid: targetUid
-    });
+    if (getState().sessions.sessions[targetUid]?.search) {
+      dispatch({
+        type: SESSION_SEARCH_CLOSE,
+        uid: targetUid
+      });
+    } else {
+      if (keyEvent) {
+        keyEvent.catched = false;
+      }
+    }
   };
 }
 
-export function sendSessionData(uid: string | null, data: any, escaped?: any) {
+export function sendSessionData(uid: string | null, data: any, escaped?: boolean | null) {
   return (dispatch: HyperDispatch, getState: () => HyperState) => {
     dispatch({
       type: SESSION_USER_DATA,

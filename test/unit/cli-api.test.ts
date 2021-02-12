@@ -1,7 +1,8 @@
 import test from 'ava';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const proxyquire = require('proxyquire').noCallThru();
 
-test('existsOnNpm() builds the url for non-scoped packages', t => {
+test('existsOnNpm() builds the url for non-scoped packages', (t) => {
   let getUrl: string;
   const {existsOnNpm} = proxyquire('../../cli/api', {
     got: {
@@ -22,7 +23,7 @@ test('existsOnNpm() builds the url for non-scoped packages', t => {
   });
 });
 
-test('existsOnNpm() builds the url for scoped packages', t => {
+test('existsOnNpm() builds the url for scoped packages', (t) => {
   let getUrl: string;
   const {existsOnNpm} = proxyquire('../../cli/api', {
     got: {

@@ -112,16 +112,15 @@ export function windowGeometryUpdated(): HyperActions {
 
 // Find all sessions that are below the given
 // termGroup uid in the hierarchy:
-const findChildSessions = (termGroups: any, uid: string): string[] => {
+const findChildSessions = (termGroups: HyperState['termGroups']['termGroups'], uid: string): string[] => {
   const group = termGroups[uid];
   if (group.sessionUid) {
     return [uid];
   }
 
-  return group.children.reduce(
-    (total: string[], childUid: string) => total.concat(findChildSessions(termGroups, childUid)),
-    []
-  );
+  return group.children
+    .asMutable()
+    .reduce((total: string[], childUid: string) => total.concat(findChildSessions(termGroups, childUid)), []);
 };
 
 // Get the index of the next or previous group,
@@ -143,7 +142,6 @@ function moveToNeighborPane(type: typeof UI_MOVE_NEXT_PANE | typeof UI_MOVE_PREV
         const {uid} = findBySession(termGroups, sessions.activeUid!)!;
         const childGroups = findChildSessions(termGroups.termGroups, termGroups.activeRootGroup!);
         if (childGroups.length === 1) {
-          //eslint-disable-next-line no-console
           console.log('ignoring move for single group');
         } else {
           const index = getNeighborIndex(childGroups, uid!, type);
@@ -174,7 +172,6 @@ export function moveLeft() {
         const index = groupUids.indexOf(uid);
         const next = groupUids[index - 1] || groupUids[groupUids.length - 1];
         if (!next || uid === next) {
-          //eslint-disable-next-line no-console
           console.log('ignoring left move action');
         } else {
           dispatch(setActiveGroup(next));
@@ -195,7 +192,6 @@ export function moveRight() {
         const index = groupUids.indexOf(uid);
         const next = groupUids[index + 1] || groupUids[0];
         if (!next || uid === next) {
-          //eslint-disable-next-line no-console
           console.log('ignoring right move action');
         } else {
           dispatch(setActiveGroup(next));
@@ -212,7 +208,7 @@ export function moveTo(i: number | 'last') {
       const {termGroups} = getState().termGroups;
       i =
         Object.keys(termGroups)
-          .map(uid => termGroups[uid])
+          .map((uid) => termGroups[uid])
           .filter(({parentUid}) => !parentUid).length - 1;
     }
     dispatch({
@@ -223,12 +219,10 @@ export function moveTo(i: number | 'last') {
         const groupUids = getGroupUids(state);
         const uid = state.termGroups.activeRootGroup;
         if (uid === groupUids[i as number]) {
-          //eslint-disable-next-line no-console
           console.log('ignoring same uid');
         } else if (groupUids[i as number]) {
           dispatch(setActiveGroup(groupUids[i as number]));
         } else {
-          //eslint-disable-next-line no-console
           console.log('ignoring inexistent index', i);
         }
       }
@@ -323,14 +317,14 @@ export function openSSH(url: string) {
   };
 }
 
-export function execCommand(command: any, fn: any, e: any) {
+export function execCommand(command: string, fn: (e: any, dispatch: HyperDispatch) => void, e: any) {
   return (dispatch: HyperDispatch) =>
     dispatch({
       type: UI_COMMAND_EXEC,
       command,
       effect() {
         if (fn) {
-          fn(e);
+          fn(e, dispatch);
         } else {
           rpc.emit('command', command);
         }

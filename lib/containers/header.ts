@@ -1,12 +1,10 @@
-/* eslint-disable max-params */
 import {createSelector} from 'reselect';
 
 import Header from '../components/header';
 import {closeTab, changeTab, maximize, openHamburgerMenu, unmaximize, minimize, close} from '../actions/header';
 import {connect} from '../utils/plugins';
 import {getRootGroups} from '../selectors';
-import {HyperState} from '../hyper';
-import {Dispatch} from 'redux';
+import {HyperState, HyperDispatch, ITab} from '../hyper';
 
 const isMac = /Mac/.test(navigator.userAgent);
 
@@ -17,63 +15,67 @@ const getActivityMarkers = ({ui}: HyperState) => ui.activityMarkers;
 const getTabs = createSelector(
   [getSessions, getRootGroups, getActiveSessions, getActiveRootGroup, getActivityMarkers],
   (sessions, rootGroups, activeSessions, activeRootGroup, activityMarkers) =>
-    rootGroups.map(t => {
-      const activeSessionUid = activeSessions[t.uid];
-      const session = sessions[activeSessionUid];
-      return {
-        uid: t.uid,
-        title: session.title,
-        isActive: t.uid === activeRootGroup,
-        hasActivity: activityMarkers[session.uid]
-      };
-    })
+    rootGroups.map(
+      (t): ITab => {
+        const activeSessionUid = activeSessions[t.uid];
+        const session = sessions[activeSessionUid];
+        return {
+          uid: t.uid,
+          title: session.title,
+          isActive: t.uid === activeRootGroup,
+          hasActivity: activityMarkers[session.uid]
+        };
+      }
+    )
 );
 
-export const HeaderContainer = connect(
-  (state: HyperState) => {
-    return {
-      // active is an index
-      isMac,
-      tabs: getTabs(state),
-      activeMarkers: state.ui.activityMarkers,
-      borderColor: state.ui.borderColor,
-      backgroundColor: state.ui.backgroundColor,
-      maximized: state.ui.maximized,
-      fullScreen: state.ui.fullScreen,
-      showHamburgerMenu: state.ui.showHamburgerMenu,
-      showWindowControls: state.ui.showWindowControls
-    };
-  },
-  (dispatch: Dispatch<any>) => {
-    return {
-      onCloseTab: (i: string) => {
-        dispatch(closeTab(i));
-      },
+const mapStateToProps = (state: HyperState) => {
+  return {
+    // active is an index
+    isMac,
+    tabs: getTabs(state),
+    activeMarkers: state.ui.activityMarkers,
+    borderColor: state.ui.borderColor,
+    backgroundColor: state.ui.backgroundColor,
+    maximized: state.ui.maximized,
+    fullScreen: state.ui.fullScreen,
+    showHamburgerMenu: state.ui.showHamburgerMenu,
+    showWindowControls: state.ui.showWindowControls
+  };
+};
 
-      onChangeTab: (i: string) => {
-        dispatch(changeTab(i));
-      },
+const mapDispatchToProps = (dispatch: HyperDispatch) => {
+  return {
+    onCloseTab: (i: string) => {
+      dispatch(closeTab(i));
+    },
 
-      maximize: () => {
-        dispatch(maximize());
-      },
+    onChangeTab: (i: string) => {
+      dispatch(changeTab(i));
+    },
 
-      unmaximize: () => {
-        dispatch(unmaximize());
-      },
+    maximize: () => {
+      dispatch(maximize());
+    },
 
-      openHamburgerMenu: (coordinates: {x: number; y: number}) => {
-        dispatch(openHamburgerMenu(coordinates));
-      },
+    unmaximize: () => {
+      dispatch(unmaximize());
+    },
 
-      minimize: () => {
-        dispatch(minimize());
-      },
+    openHamburgerMenu: (coordinates: {x: number; y: number}) => {
+      dispatch(openHamburgerMenu(coordinates));
+    },
 
-      close: () => {
-        dispatch(close());
-      }
-    };
-  },
-  null
-)(Header, 'Header');
+    minimize: () => {
+      dispatch(minimize());
+    },
+
+    close: () => {
+      dispatch(close());
+    }
+  };
+};
+
+export const HeaderContainer = connect(mapStateToProps, mapDispatchToProps, null)(Header, 'Header');
+
+export type HeaderConnectedProps = ReturnType<typeof mapStateToProps> & ReturnType<typeof mapDispatchToProps>;

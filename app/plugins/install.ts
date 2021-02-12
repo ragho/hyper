@@ -10,9 +10,8 @@ export const install = (fn: Function) => {
       NODE_ENV: 'production',
       ELECTRON_RUN_AS_NODE: 'true'
     };
-    spawnQueue.push(end => {
+    spawnQueue.push((end) => {
       const cmd = [process.execPath, yarn].concat(args).join(' ');
-      //eslint-disable-next-line no-console
       console.log('Launching yarn:', cmd);
 
       cp.execFile(

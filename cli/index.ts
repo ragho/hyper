@@ -1,6 +1,6 @@
 // This is a CLI tool, using console is OK
 /* eslint no-console: 0 */
-import {spawn, exec} from 'child_process';
+import {spawn, exec, SpawnOptions} from 'child_process';
 import {isAbsolute, resolve} from 'path';
 import {existsSync} from 'fs';
 import {version} from '../app/package.json';
@@ -12,8 +12,6 @@ import columnify from 'columnify';
 import got from 'got';
 import ora from 'ora';
 import * as api from './api';
-
-const PLUGIN_PREFIX = 'hyper-';
 
 let commandPromise: Promise<void>;
 
@@ -44,7 +42,7 @@ args.command(
     commandPromise = api
       .install(pluginName)
       .then(() => console.log(chalk.green(`${pluginName} installed successfully!`)))
-      .catch((err: any) => console.error(chalk.red(err)));
+      .catch((err) => console.error(chalk.red(err)));
   },
   ['i']
 );
@@ -59,7 +57,7 @@ args.command(
     commandPromise = api
       .uninstall(pluginName)
       .then(() => console.log(chalk.green(`${pluginName} uninstalled successfully!`)))
-      .catch(err => console.log(chalk.red(err)));
+      .catch((err) => console.log(chalk.red(err)));
   },
   ['u', 'rm', 'remove']
 );
@@ -83,18 +81,19 @@ args.command(
 
 const lsRemote = (pattern?: string) => {
   // note that no errors are catched by this function
-  const URL = `https://api.npms.io/v2/search?q=${(pattern && `${pattern}+`) || ''}keywords:hyper-plugin,hyper-theme`;
+  const URL = `https://api.npms.io/v2/search?q=${
+    (pattern && `${pattern}+`) || ''
+  }keywords:hyper-plugin,hyper-theme&size=250`;
   return got(URL)
-    .then(response => JSON.parse(response.body).results as any[])
-    .then(entries => entries.map(entry => entry.package))
-    .then(entries => entries.filter(entry => entry.name.indexOf(PLUGIN_PREFIX) === 0))
-    .then(entries =>
+    .then((response) => JSON.parse(response.body).results as any[])
+    .then((entries) => entries.map((entry) => entry.package))
+    .then((entries) =>
       entries.map(({name, description}) => {
         return {name, description};
       })
     )
-    .then(entries =>
-      entries.map(entry => {
+    .then((entries) =>
+      entries.map((entry) => {
         entry.name = chalk.green(entry.name);
         return entry;
       })
@@ -109,7 +108,7 @@ args.command(
     const query = args_[0] ? args_[0].toLowerCase() : '';
 
     commandPromise = lsRemote(query)
-      .then(entries => {
+      .then((entries) => {
         if (entries.length === 0) {
           spinner.fail();
           console.error(chalk.red(`Your search '${query}' did not match any plugins`));
@@ -122,7 +121,7 @@ args.command(
           console.log(msg);
         }
       })
-      .catch(err => {
+      .catch((err) => {
         spinner.fail();
         console.error(chalk.red(err)); // TODO
       });
@@ -137,14 +136,14 @@ args.command(
     const spinner = ora('Searching').start();
 
     commandPromise = lsRemote()
-      .then(entries => {
+      .then((entries) => {
         let msg = columnify(entries);
 
         spinner.succeed();
         msg = msg.substring(msg.indexOf('\n') + 1); // remove header
         console.log(msg);
       })
-      .catch(err => {
+      .catch((err) => {
         spinner.fail();
         console.error(chalk.red(err)); // TODO
       });
@@ -203,12 +202,12 @@ const main = (argv: string[]) => {
     env['ELECTRON_ENABLE_LOGGING'] = '1';
   }
 
-  const options: any = {
+  const options: SpawnOptions = {
     detached: true,
     env
   };
 
-  const args_ = args.sub.map(arg => {
+  const args_ = args.sub.map((arg) => {
     const cwd = isAbsolute(arg) ? arg : resolve(process.cwd(), arg);
     if (!existsSync(cwd)) {
       console.error(chalk.red(`Error! Directory or file does not exist: ${cwd}`));
@@ -232,11 +231,11 @@ const main = (argv: string[]) => {
   const child = spawn(process.execPath, args_, options);
 
   if (flags.verbose) {
-    child.stdout.on('data', data => console.log(data.toString('utf8')));
-    child.stderr.on('data', data => console.error(data.toString('utf8')));
+    child.stdout?.on('data', (data) => console.log(data.toString('utf8')));
+    child.stderr?.on('data', (data) => console.error(data.toString('utf8')));
   }
   if (flags.verbose) {
-    return new Promise(c => child.once('exit', () => c(null)));
+    return new Promise((c) => child.once('exit', () => c(null)));
   }
   child.unref();
   return Promise.resolve();
@@ -248,7 +247,7 @@ function eventuallyExit(code: number) {
 
 main(process.argv)
   .then(() => eventuallyExit(0))
-  .catch((err: any) => {
+  .catch((err) => {
     console.error(err.stack ? err.stack : err);
     eventuallyExit(1);
   });

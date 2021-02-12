@@ -3,47 +3,10 @@ if (['--help', '-v', '--version'].includes(process.argv[1])) {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const {version} = require('./package');
   const configLocation = process.platform === 'win32' ? `${process.env.userprofile}\\.hyper.js` : '~/.hyper.js';
-  //eslint-disable-next-line no-console
   console.log(`Hyper version ${version}`);
-  //eslint-disable-next-line no-console
   console.log('Hyper does not accept any command line arguments. Please modify the config file instead.');
-  //eslint-disable-next-line no-console
   console.log(`Hyper configuration file located at: ${configLocation}`);
   process.exit();
-}
-
-const checkSquirrel = () => {
-  let squirrel;
-
-  try {
-    squirrel = require('electron-squirrel-startup');
-    //eslint-disable-next-line no-empty
-  } catch (err) {}
-  if (squirrel) {
-    process.exit();
-  }
-};
-
-// handle startup squirrel events
-if (process.platform === 'win32') {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const systemContextMenu = require('./system-context-menu');
-
-  switch (process.argv[1]) {
-    case '--squirrel-install':
-    case '--squirrel-updated':
-      systemContextMenu.add(() => {
-        checkSquirrel();
-      });
-      break;
-    case '--squirrel-uninstall':
-      systemContextMenu.remove(() => {
-        checkSquirrel();
-      });
-      break;
-    default:
-      checkSquirrel();
-  }
 }
 
 // Native
@@ -54,28 +17,6 @@ import {app, BrowserWindow, Menu} from 'electron';
 import {gitDescribe} from 'git-describe';
 import isDev from 'electron-is-dev';
 import * as config from './config';
-
-// Hack - this declararion doesn't work when put into ./ext-modules.d.ts for some reason so it's in this file for the time being
-declare module 'electron' {
-  interface App {
-    config: typeof import('./config');
-    plugins: typeof import('./plugins');
-    getWindows: () => Set<BrowserWindow>;
-    getLastFocusedWindow: () => BrowserWindow | null;
-    windowCallback: (win: BrowserWindow) => void;
-    createWindow: (fn?: (win: BrowserWindow) => void, options?: Record<string, any>) => BrowserWindow;
-    setVersion: (version: string) => void;
-  }
-
-  type Server = import('./rpc').Server;
-  interface BrowserWindow {
-    uid: string;
-    sessions: Map<any, any>;
-    focusTime: number;
-    clean: () => void;
-    rpc: Server;
-  }
-}
 
 // set up config
 config.setup();
@@ -104,12 +45,10 @@ app.getLastFocusedWindow = () => {
   });
 };
 
-//eslint-disable-next-line no-console
 console.log('Disabling Chromium GPU blacklist');
 app.commandLine.appendSwitch('ignore-gpu-blacklist');
 
 if (isDev) {
-  //eslint-disable-next-line no-console
   console.log('running in dev mode');
 
   // Override default appVersion which is set from package.json
@@ -119,12 +58,10 @@ if (isDev) {
     }
   });
 } else {
-  //eslint-disable-next-line no-console
   console.log('running in prod mode');
 }
 
 const url = `file://${resolve(isDev ? __dirname : app.getAppPath(), 'index.html')}`;
-//eslint-disable-next-line no-console
 console.log('electron will open', url);
 
 function installDevExtensions(isDev_: boolean) {
@@ -137,7 +74,7 @@ function installDevExtensions(isDev_: boolean) {
   const extensions = ['REACT_DEVELOPER_TOOLS', 'REDUX_DEVTOOLS'] as const;
   const forceDownload = Boolean(process.env.UPGRADE_EXTENSIONS);
 
-  return Promise.all(extensions.map(name => installer.default(installer[name], forceDownload)));
+  return Promise.all(extensions.map((name) => installer.default(installer[name], forceDownload)));
 }
 
 app.on('ready', () =>
@@ -198,12 +135,6 @@ app.on('ready', () =>
           windowSet.delete(hwin);
         });
 
-        hwin.on('closed', () => {
-          if (process.platform !== 'darwin' && windowSet.size === 0) {
-            app.quit();
-          }
-        });
-
         return hwin;
       }
 
@@ -219,6 +150,12 @@ app.on('ready', () =>
       app.on('activate', () => {
         if (!windowSet.size) {
           createWindow();
+        }
+      });
+
+      app.on('window-all-closed', () => {
+        if (process.platform !== 'darwin') {
+          app.quit();
         }
       });
 
@@ -248,19 +185,16 @@ app.on('ready', () =>
       if (!isDev) {
         // check if should be set/removed as default ssh protocol client
         if (config.getConfig().defaultSSHApp && !app.isDefaultProtocolClient('ssh')) {
-          //eslint-disable-next-line no-console
           console.log('Setting Hyper as default client for ssh:// protocol');
           app.setAsDefaultProtocolClient('ssh');
         } else if (!config.getConfig().defaultSSHApp && app.isDefaultProtocolClient('ssh')) {
-          //eslint-disable-next-line no-console
           console.log('Removing Hyper from default client for ssh:// protocol');
           app.removeAsDefaultProtocolClient('ssh');
         }
         installCLI(false);
       }
     })
-    .catch(err => {
-      //eslint-disable-next-line no-console
+    .catch((err) => {
       console.error('Error while loading devtools extensions', err);
     })
 );

@@ -1,7 +1,7 @@
 // Packages
 const {prompt} = require('inquirer');
 
-module.exports = async markdown => {
+module.exports = async (markdown) => {
   const answers = await prompt([
     {
       name: 'intro',
@@ -12,7 +12,6 @@ module.exports = async markdown => {
   const {intro} = answers;
 
   if (intro === '') {
-    //eslint-disable-next-line no-console
     console.error('Please specify a release summary!');
 
     process.exit(1);

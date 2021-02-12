@@ -1,12 +1,13 @@
-const path = require('path');
-
-const webpack = require('webpack');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const Copy = require('copy-webpack-plugin');
+import path from 'path';
+import TerserPlugin from 'terser-webpack-plugin';
+import webpack from 'webpack';
 
 const nodeEnv = process.env.NODE_ENV || 'development';
 const isProd = nodeEnv === 'production';
 
-module.exports = [
+const config: webpack.Configuration[] = [
   {
     mode: 'none',
     name: 'hyper-app',
@@ -28,30 +29,33 @@ module.exports = [
       ]
     },
     plugins: [
-      new Copy([
-        {
-          from: './app/*.html',
-          exclude: /node_modules/,
-          to: '.',
-          flatten: true
-        },
-        {
-          from: './app/*.json',
-          exclude: /node_modules/,
-          to: '.',
-          flatten: true
-        },
-        {
-          from: './app/keymaps/*.json',
-          exclude: /node_modules/,
-          to: './keymaps',
-          flatten: true
-        },
-        {
-          from: './app/static',
-          to: './static'
-        }
-      ])
+      new Copy({
+        patterns: [
+          {
+            from: './app/*.html',
+            globOptions: {ignore: ['**/node_modules/**']},
+            to: '[name].[ext]'
+          },
+          {
+            from: './app/*.json',
+            globOptions: {ignore: ['**/node_modules/**']},
+            to: '[name].[ext]'
+          },
+          {
+            from: './app/yarn.lock',
+            to: 'yarn.lock'
+          },
+          {
+            from: './app/keymaps/*.json',
+            globOptions: {ignore: ['**/node_modules/**']},
+            to: './keymaps/[name].[ext]'
+          },
+          {
+            from: './app/static',
+            to: './static'
+          }
+        ]
+      })
     ],
     target: 'electron-main'
   },
@@ -82,25 +86,31 @@ module.exports = [
         // for xterm.js
         {
           test: /\.css$/,
-          loader: 'style-loader!css-loader'
+          use: ['style-loader', 'css-loader']
         }
       ]
     },
     plugins: [
-      new webpack.IgnorePlugin(/.*\.js.map$/i),
+      new webpack.IgnorePlugin({resourceRegExp: /.*\.js.map$/i}),
 
       new webpack.DefinePlugin({
         'process.env': {
           NODE_ENV: JSON.stringify(nodeEnv)
         }
       }),
-      new Copy([
-        {
-          from: './assets',
-          to: './assets'
-        }
-      ])
+      new Copy({
+        patterns: [
+          {
+            from: './assets',
+            to: './assets'
+          }
+        ]
+      })
     ],
+    optimization: {
+      minimize: isProd ? true : false,
+      minimizer: [new TerserPlugin()]
+    },
     target: 'electron-renderer'
   },
   {
@@ -109,7 +119,7 @@ module.exports = [
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json']
     },
-    devtool: isProd ? 'none' : 'cheap-module-source-map',
+    devtool: isProd ? false : 'cheap-module-source-map',
     entry: './cli/index.ts',
     output: {
       path: path.join(__dirname, 'bin'),
@@ -131,11 +141,17 @@ module.exports = [
     },
     plugins: [
       // spawn-sync is required by execa if node <= 0.10
-      new webpack.IgnorePlugin(/(.*\.js.map|spawn-sync)$/i),
+      new webpack.IgnorePlugin({resourceRegExp: /(.*\.js.map|spawn-sync)$/i}),
       new webpack.DefinePlugin({
         'process.env.NODE_ENV': JSON.stringify(nodeEnv)
       })
     ],
+    optimization: {
+      minimize: isProd ? true : false,
+      minimizer: [new TerserPlugin()]
+    },
     target: 'node'
   }
 ];
+
+export default config;

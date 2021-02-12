@@ -16,7 +16,7 @@ import {
 import {sessionState, session, HyperActions} from '../hyper';
 
 const initialState: ImmutableType<sessionState> = Immutable({
-  sessions: {},
+  sessions: {} as Record<string, session>,
   activeUid: null
 });
 
@@ -81,7 +81,7 @@ const reducer = (state: ImmutableType<sessionState> = initialState, action: Hype
     case SESSION_PTY_DATA:
       // we avoid a direct merge for perf reasons
       // as this is the most common action
-      if (state.sessions[action.uid] && state.sessions[action.uid].cleared) {
+      if (state.sessions[action.uid]?.cleared) {
         return state.merge(
           {
             sessions: {
@@ -99,7 +99,6 @@ const reducer = (state: ImmutableType<sessionState> = initialState, action: Hype
       if (state.sessions[action.uid]) {
         return deleteSession(state, action.uid);
       }
-      // eslint-disable-next-line no-console
       console.log('ignore pty exit: session removed by user');
       return state;
 

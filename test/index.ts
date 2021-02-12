@@ -1,5 +1,6 @@
 // Native
 import path from 'path';
+import fs from 'fs-extra';
 
 // Packages
 import test from 'ava';
@@ -35,10 +36,14 @@ test.before(async () => {
 });
 
 test.after(async () => {
+  await new Promise((resolve) => setTimeout(resolve, 5000));
+  await app.browserWindow.capturePage().then(async (imageBuffer) => {
+    await fs.writeFile(`dist/tmp/${process.platform}_test.png`, imageBuffer);
+  });
   await app.stop();
 });
 
-test('see if dev tools are open', async t => {
+test('see if dev tools are open', async (t) => {
   await app.client.waitUntilWindowLoaded();
   t.false(await app.webContents.isDevToolsOpened());
 });

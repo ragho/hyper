@@ -6,13 +6,26 @@ import {basename} from 'path';
 
 // patching Module._load
 // so plugins can `require` them without needing their own version
-// https://github.com/zeit/hyper/issues/619
+// https://github.com/vercel/hyper/issues/619
 import React, {PureComponent} from 'react';
 import ReactDOM from 'react-dom';
 import Notification from '../components/notification';
 import notify from './notify';
-import {hyperPlugin, IUiReducer, ISessionReducer, ITermGroupReducer, HyperState} from '../hyper';
-import {Dispatch, Middleware} from 'redux';
+import {
+  hyperPlugin,
+  IUiReducer,
+  ISessionReducer,
+  ITermGroupReducer,
+  HyperState,
+  HyperDispatch,
+  TabProps,
+  TabsProps,
+  TermGroupOwnProps,
+  TermProps,
+  Assignable
+} from '../hyper';
+import {Middleware} from 'redux';
+import {ObjectTypedKeys} from './object';
 
 // remote interface to `../plugins`
 const plugins = remote.require('./plugins') as typeof import('../../app/plugins');
@@ -21,7 +34,7 @@ const plugins = remote.require('./plugins') as typeof import('../../app/plugins'
 let modules: any;
 
 // cache of decorated components
-let decorated: Record<string, any> = {};
+let decorated: Record<string, React.ComponentClass<any>> = {};
 
 // various caches extracted of the plugin methods
 let connectors: {
@@ -30,7 +43,7 @@ let connectors: {
   Hyper: {state: any[]; dispatch: any[]};
   Notifications: {state: any[]; dispatch: any[]};
 };
-let middlewares: any[];
+let middlewares: Middleware[];
 let uiReducers: IUiReducer[];
 let sessionsReducers: ISessionReducer[];
 let termGroupsReducers: ITermGroupReducer[];
@@ -51,9 +64,11 @@ let reducersDecorators: {
 };
 
 // expose decorated component instance to the higher-order components
-function exposeDecorated(Component_: any) {
-  return class DecoratedComponent extends React.Component<any, any> {
-    constructor(props: any, context: any) {
+function exposeDecorated<P extends Record<string, any>>(
+  Component_: React.ComponentType<P>
+): React.ComponentClass<P, unknown> {
+  return class DecoratedComponent extends React.Component<P> {
+    constructor(props: P, context: any) {
       super(props, context);
     }
     onRef = (decorated_: any) => {
@@ -71,7 +86,7 @@ function exposeDecorated(Component_: any) {
   };
 }
 
-function getDecorated(parent: any, name: string) {
+function getDecorated<P>(parent: React.ComponentType<P>, name: string): React.ComponentClass<P> {
   if (!decorated[name]) {
     let class_ = exposeDecorated(parent);
     (class_ as any).displayName = `_exposeDecorated(${name})`;
@@ -116,9 +131,12 @@ function getDecorated(parent: any, name: string) {
 // for each component, we return a higher-order component
 // that wraps with the higher-order components
 // exposed by plugins
-export function decorate(Component_: any, name: string) {
-  return class DecoratedComponent extends React.Component<any, {hasError: boolean}> {
-    constructor(props: any) {
+export function decorate<P>(
+  Component_: React.ComponentType<P>,
+  name: string
+): React.ComponentClass<P, {hasError: boolean}> {
+  return class DecoratedComponent extends React.Component<P, {hasError: boolean}> {
+    constructor(props: P) {
       super(props);
       this.state = {hasError: false};
     }
@@ -137,6 +155,7 @@ export function decorate(Component_: any, name: string) {
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const Module = require('module') as typeof import('module') & {_load: Function};
 const originalLoad = Module._load;
 Module._load = function _load(path: string) {
@@ -144,15 +163,12 @@ Module._load = function _load(path: string) {
   // app/plugins.js
   switch (path) {
     case 'react':
-      //eslint-disable-next-line no-console
       console.warn('DEPRECATED: If your plugin requires `react`, it must bundle it as a dependency');
       return React;
     case 'react-dom':
-      //eslint-disable-next-line no-console
       console.warn('DEPRECATED: If your plugin requires `react-dom`, it must bundle it as a dependency');
       return ReactDOM;
     case 'hyper/component':
-      //eslint-disable-next-line no-console
       console.warn(
         'DEPRECATED: If your plugin requires `hyper/component`, it must requires `react.PureComponent` instead and bundle `react` as a dependency'
       );
@@ -198,14 +214,12 @@ const getPluginVersion = (path: string): string | null => {
   try {
     version = (window.require(pathModule.resolve(path, 'package.json')) as any).version as string;
   } catch (err) {
-    //eslint-disable-next-line no-console
     console.warn(`No package.json found in ${path}`);
   }
   return version;
 };
 
 const loadModules = () => {
-  //eslint-disable-next-line no-console
   console.log('(re)loading renderer plugins');
   const paths = plugins.getPaths();
 
@@ -260,7 +274,7 @@ const loadModules = () => {
         return undefined;
       }
 
-      (Object.keys(mod) as (keyof typeof mod)[]).forEach(i => {
+      ObjectTypedKeys(mod).forEach((i) => {
         if (Object.hasOwnProperty.call(mod, i)) {
           mod[i]._pluginName = pluginName;
           mod[i]._pluginVersion = pluginVersion;
@@ -270,14 +284,12 @@ const loadModules = () => {
       // mapHyperTermState mapping for backwards compatibility with hyperterm
       if (mod.mapHyperTermState) {
         mod.mapHyperState = mod.mapHyperTermState;
-        //eslint-disable-next-line no-console
         console.error('mapHyperTermState is deprecated. Use mapHyperState instead.');
       }
 
       // mapHyperTermDispatch mapping for backwards compatibility with hyperterm
       if (mod.mapHyperTermDispatch) {
         mod.mapHyperDispatch = mod.mapHyperTermDispatch;
-        //eslint-disable-next-line no-console
         console.error('mapHyperTermDispatch is deprecated. Use mapHyperDispatch instead.');
       }
 
@@ -348,18 +360,16 @@ const loadModules = () => {
       if (mod.onRendererWindow) {
         mod.onRendererWindow(window);
       }
-      //eslint-disable-next-line no-console
       console.log(`Plugin ${pluginName} (${pluginVersion}) loaded.`);
 
       return mod;
     })
     .filter((mod: any) => Boolean(mod));
 
-  const deprecatedPlugins: Record<string, any> = plugins.getDeprecatedConfig();
-  Object.keys(deprecatedPlugins).forEach(name => {
+  const deprecatedPlugins = plugins.getDeprecatedConfig();
+  Object.keys(deprecatedPlugins).forEach((name) => {
     const {css} = deprecatedPlugins[name];
-    if (css) {
-      //eslint-disable-next-line no-console
+    if (css.length > 0) {
       console.warn(`Warning: "${name}" plugin uses some deprecated CSS classes (${css.join(', ')}).`);
     }
   });
@@ -380,7 +390,7 @@ function getProps(name: keyof typeof propsDecorators, props: any, ...fnArgs: any
   const decorators = propsDecorators[name];
   let props_: typeof props;
 
-  decorators.forEach(fn => {
+  decorators.forEach((fn) => {
     let ret_;
 
     if (!props_) {
@@ -407,19 +417,23 @@ function getProps(name: keyof typeof propsDecorators, props: any, ...fnArgs: any
   return props_ || props;
 }
 
-export function getTermGroupProps(uid: string, parentProps: any, props: any) {
+export function getTermGroupProps<T extends Assignable<TermGroupOwnProps, T>>(
+  uid: string,
+  parentProps: any,
+  props: T
+): T {
   return getProps('getTermGroupProps', props, uid, parentProps);
 }
 
-export function getTermProps(uid: string, parentProps: any, props: any) {
+export function getTermProps<T extends Assignable<TermProps, T>>(uid: string, parentProps: any, props: T): T {
   return getProps('getTermProps', props, uid, parentProps);
 }
 
-export function getTabsProps(parentProps: any, props: any) {
+export function getTabsProps<T extends Assignable<TabsProps, T>>(parentProps: any, props: T): T {
   return getProps('getTabsProps', props, parentProps);
 }
 
-export function getTabProps(tab: any, parentProps: any, props: any) {
+export function getTabProps<T extends Assignable<TabProps, T>>(tab: any, parentProps: any, props: T): T {
   return getProps('getTabProps', props, tab, parentProps);
 }
 
@@ -428,15 +442,15 @@ export function getTabProps(tab: any, parentProps: any, props: any) {
 // and the class gets decorated (proxied)
 export function connect<stateProps, dispatchProps>(
   stateFn: (state: HyperState) => stateProps,
-  dispatchFn: (dispatch: Dispatch<any>) => dispatchProps,
+  dispatchFn: (dispatch: HyperDispatch) => dispatchProps,
   c: any,
   d: Options = {}
 ) {
   return (Class: any, name: keyof typeof connectors) => {
     return reduxConnect<stateProps, dispatchProps, any, HyperState>(
-      state => {
+      (state) => {
         let ret = stateFn(state);
-        connectors[name].state.forEach(fn => {
+        connectors[name].state.forEach((fn) => {
           let ret_;
 
           try {
@@ -459,9 +473,9 @@ export function connect<stateProps, dispatchProps>(
         });
         return ret;
       },
-      dispatch => {
+      (dispatch) => {
         let ret = dispatchFn(dispatch);
-        connectors[name].dispatch.forEach(fn => {
+        connectors[name].dispatch.forEach((fn) => {
           let ret_;
 
           try {
@@ -539,7 +553,7 @@ export function decorateSessionsReducer(fn: ISessionReducer) {
 }
 
 // redux middleware generator
-export const middleware: Middleware = store => next => action => {
+export const middleware: Middleware = (store) => (next) => (action) => {
   const nextMiddleware = (remaining: Middleware[]) => (action_: any) =>
     remaining.length ? remaining[0](store)(nextMiddleware(remaining.slice(1)))(action_) : next(action_);
   nextMiddleware(middlewares)(action);

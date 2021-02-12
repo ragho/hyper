@@ -1,4 +1,4 @@
-import uuid from 'uuid';
+import {v4 as uuidv4} from 'uuid';
 import Immutable, {Immutable as ImmutableType} from 'seamless-immutable';
 import {TERM_GROUP_EXIT, TERM_GROUP_RESIZE} from '../constants/term-groups';
 import {SESSION_ADD, SESSION_SET_ACTIVE, SessionAddAction} from '../constants/sessions';
@@ -46,11 +46,11 @@ const setActiveGroup = (state: ImmutableType<ITermState>, action: {uid: string})
 };
 
 // Reduce existing sizes to fit a new split:
-const insertRebalance = (oldSizes: ImmutableType<number[]>, index: any) => {
+const insertRebalance = (oldSizes: ImmutableType<number[]>, index: number) => {
   const newSize = 1 / (oldSizes.length + 1);
   // We spread out how much each pane should be reduced
   // with based on their existing size:
-  const balanced = oldSizes.map(size => size - newSize * size);
+  const balanced = oldSizes.map((size) => size - newSize * size);
   return [...balanced.slice(0, index).asMutable(), newSize, ...balanced.slice(index).asMutable()];
 };
 
@@ -86,7 +86,7 @@ const splitGroup = (state: ImmutableType<ITermState>, action: SessionAddAction) 
   //      P      ->         /   \
   //                       G     G
   const newSession = TermGroup({
-    uid: uuid.v4(),
+    uid: uuidv4(),
     sessionUid: uid,
     parentUid: parentGroup.uid
   });
@@ -94,7 +94,7 @@ const splitGroup = (state: ImmutableType<ITermState>, action: SessionAddAction) 
   state = state.setIn(['termGroups', newSession.uid], newSession);
   if (parentGroup.sessionUid) {
     const existingSession = TermGroup({
-      uid: uuid.v4(),
+      uid: uuidv4(),
       sessionUid: parentGroup.sessionUid,
       parentUid: parentGroup.uid
     });
@@ -167,7 +167,7 @@ const removeGroup = (state: ImmutableType<ITermState>, uid: string) => {
   // it's safe to remove the group.
   if (group.parentUid && state.termGroups[group.parentUid]) {
     const parent = state.termGroups[group.parentUid];
-    const newChildren = parent.children.filter((childUid: any) => childUid !== uid);
+    const newChildren = parent.children.filter((childUid) => childUid !== uid);
     if (newChildren.length === 1) {
       // Since we only have one child left,
       // we can merge the parent and child into one group:
@@ -188,9 +188,9 @@ const removeGroup = (state: ImmutableType<ITermState>, uid: string) => {
     .set('activeSessions', state.activeSessions.without(uid));
 };
 
-const resizeGroup = (state: ImmutableType<ITermState>, uid: any, sizes: number[]) => {
+const resizeGroup = (state: ImmutableType<ITermState>, uid: string, sizes: number[]) => {
   // Make sure none of the sizes fall below MIN_SIZE:
-  if (sizes.find(size => size < MIN_SIZE)) {
+  if (sizes.find((size) => size < MIN_SIZE)) {
     return state;
   }
 
@@ -205,7 +205,7 @@ const reducer = (state = initialState, action: HyperActions) => {
         return setActiveGroup(state, action);
       }
 
-      const uid = uuid.v4();
+      const uid = uuidv4();
       const termGroup = TermGroup({
         uid,
         sessionUid: action.uid

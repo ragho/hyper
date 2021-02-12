@@ -7,7 +7,7 @@ import {icon} from '../config/paths';
 import viewMenu from './menus/view';
 import shellMenu from './menus/shell';
 import editMenu from './menus/edit';
-import pluginsMenu from './menus/plugins';
+import toolsMenu from './menus/tools';
 import windowMenu from './menus/window';
 import helpMenu from './menus/help';
 import darwinMenu from './menus/darwin';
@@ -15,7 +15,7 @@ import {getDecoratedKeymaps} from '../plugins';
 import {execCommand} from '../commands';
 import {getRendererTypes} from '../utils/renderer-utils';
 
-const appName = app.getName();
+const appName = app.name;
 const appVersion = app.getVersion();
 
 let menu_: Menu;
@@ -34,14 +34,14 @@ export const createMenu = (
 
   let updateChannel = 'stable';
 
-  if (config && config.updateChannel && config.updateChannel === 'canary') {
+  if (config?.updateChannel && config.updateChannel === 'canary') {
     updateChannel = 'canary';
   }
 
   const showAbout = () => {
     const loadedPlugins = getLoadedPluginVersions();
     const pluginList =
-      loadedPlugins.length === 0 ? 'none' : loadedPlugins.map(plugin => `\n  ${plugin.name} (${plugin.version})`);
+      loadedPlugins.length === 0 ? 'none' : loadedPlugins.map((plugin) => `\n  ${plugin.name} (${plugin.version})`);
 
     const rendererCounts = Object.values(getRendererTypes()).reduce((acc: Record<string, number>, type) => {
       acc[type] = acc[type] ? acc[type] + 1 : 1;
@@ -54,7 +54,7 @@ export const createMenu = (
     dialog.showMessageBox({
       title: `About ${appName}`,
       message: `${appName} ${appVersion} (${updateChannel})`,
-      detail: `Renderers: ${renderers}\nPlugins: ${pluginList}\n\nCreated by Guillermo Rauch\nCopyright © 2019 ZEIT, Inc.`,
+      detail: `Renderers: ${renderers}\nPlugins: ${pluginList}\n\nCreated by Guillermo Rauch\nCopyright © 2020 Vercel, Inc.`,
       buttons: [],
       icon: icon as any
     });
@@ -64,7 +64,7 @@ export const createMenu = (
     shellMenu(commandKeys, execCommand),
     editMenu(commandKeys, execCommand),
     viewMenu(commandKeys, execCommand),
-    pluginsMenu(commandKeys, execCommand),
+    toolsMenu(commandKeys, execCommand),
     windowMenu(commandKeys, execCommand),
     helpMenu(commandKeys, showAbout)
   ];
