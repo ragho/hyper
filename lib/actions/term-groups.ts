@@ -11,22 +11,22 @@ import findBySession from '../utils/term-groups';
 import {getRootGroups} from '../selectors';
 import {setActiveSession, ptyExitSession, userExitSession} from './sessions';
 import {ITermState, ITermGroup, HyperState, HyperDispatch, HyperActions} from '../hyper';
-import {Immutable} from 'seamless-immutable';
 
 function requestSplit(direction: 'VERTICAL' | 'HORIZONTAL') {
-  return (activeUid: string) => (dispatch: HyperDispatch, getState: () => HyperState): void => {
-    dispatch({
-      type: SESSION_REQUEST,
-      effect: () => {
-        const {ui, sessions} = getState();
-        rpc.emit('new', {
-          splitDirection: direction,
-          cwd: ui.cwd,
-          activeUid: activeUid ? activeUid : sessions.activeUid
-        });
-      }
-    });
-  };
+  return (activeUid: string) =>
+    (dispatch: HyperDispatch, getState: () => HyperState): void => {
+      dispatch({
+        type: SESSION_REQUEST,
+        effect: () => {
+          const {ui, sessions} = getState();
+          rpc.emit('new', {
+            splitDirection: direction,
+            cwd: ui.cwd,
+            activeUid: activeUid ? activeUid : sessions.activeUid
+          });
+        }
+      });
+    };
 }
 
 export const requestVerticalSplit = requestSplit(DIRECTION.VERTICAL);
@@ -67,7 +67,7 @@ export function setActiveGroup(uid: string) {
 // When we've found the next group which we want to
 // set as active (after closing something), we also need
 // to find the first child group which has a sessionUid.
-const findFirstSession = (state: Immutable<ITermState>, group: Immutable<ITermGroup>): string | undefined => {
+const findFirstSession = (state: ITermState, group: ITermGroup): string | undefined => {
   if (group.sessionUid) {
     return group.sessionUid;
   }
@@ -90,7 +90,7 @@ const findPrevious = <T>(list: T[], old: T) => {
   return index ? list[index - 1] : list[1];
 };
 
-const findNextSessionUid = (state: Immutable<ITermState>, group: Immutable<ITermGroup>) => {
+const findNextSessionUid = (state: ITermState, group: ITermGroup) => {
   // If we're closing a root group (i.e. a whole tab),
   // the next group needs to be a root group as well:
   if (state.activeRootGroup === group.uid) {
@@ -101,7 +101,7 @@ const findNextSessionUid = (state: Immutable<ITermState>, group: Immutable<ITerm
 
   const {children} = state.termGroups[group.parentUid!];
   const nextUid = findPrevious(children.asMutable(), group.uid);
-  return findFirstSession(state, state.termGroups[nextUid!]);
+  return findFirstSession(state, state.termGroups[nextUid]);
 };
 
 export function ptyExitTermGroup(sessionUid: string) {
@@ -168,7 +168,7 @@ export function exitActiveTermGroup() {
       effect() {
         const {sessions, termGroups} = getState();
         const {uid} = findBySession(termGroups, sessions.activeUid!)!;
-        dispatch(userExitTermGroup(uid!));
+        dispatch(userExitTermGroup(uid));
       }
     });
   };

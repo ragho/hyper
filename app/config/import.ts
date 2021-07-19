@@ -7,7 +7,7 @@ import {rawConfig} from '../../lib/config';
 
 let defaultConfig: rawConfig;
 
-const _write = (path: string, data: any) => {
+const _write = (path: string, data: string) => {
   // This method will take text formatted as Unix line endings and transform it
   // to text formatted with DOS line endings. We do this because the default
   // text editor on Windows (notepad) doesn't Deal with LF files. Still. In 2017.
@@ -23,17 +23,12 @@ const _write = (path: string, data: any) => {
 const saveAsBackup = (src: string) => {
   let attempt = 1;
   while (attempt < 100) {
-    try {
-      const backupPath = `${src}.backup${attempt === 1 ? '' : attempt}`;
+    const backupPath = `${src}.backup${attempt === 1 ? '' : attempt}`;
+    if (!existsSync(backupPath)) {
       moveSync(src, backupPath);
       return backupPath;
-    } catch (e) {
-      if (e.code === 'EEXIST') {
-        attempt++;
-      } else {
-        throw e;
-      }
     }
+    attempt++;
   }
   throw new Error('Failed to create backup for config file. Too many backups');
 };
@@ -126,7 +121,7 @@ const _importConf = () => {
 export const _import = () => {
   const imported = _importConf();
   defaultConfig = imported.defaultCfg;
-  const result = _init(imported!);
+  const result = _init(imported);
   return result;
 };
 

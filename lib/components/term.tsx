@@ -11,7 +11,6 @@ import Color from 'color';
 import terms from '../terms';
 import processClipboard from '../utils/paste';
 import SearchBox from './searchBox';
-import ResizeObserver from 'resize-observer-polyfill';
 import {TermProps} from '../hyper';
 import {ObjectTypedKeys} from '../utils/object';
 
@@ -149,17 +148,19 @@ export default class Term extends React.PureComponent<TermProps> {
       }
       Term.reportRenderer(props.uid, useWebGL ? 'WebGL' : 'Canvas');
 
-      const shallActivateWebLink = (event: Record<string, any> | undefined) => {
+      const shallActivateWebLink = (event: Record<string, any> | undefined): boolean => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return event && (!props.webLinksActivationKey || event[`${props.webLinksActivationKey}Key`]);
       };
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       this.term.attachCustomKeyEventHandler(this.keyboardHandler);
       this.term.loadAddon(this.fitAddon);
       this.term.loadAddon(this.searchAddon);
       this.term.loadAddon(
         new WebLinksAddon(
           (event: MouseEvent | undefined, uri: string) => {
-            if (shallActivateWebLink(event)) shell.openExternal(uri);
+            if (shallActivateWebLink(event)) void shell.openExternal(uri);
           },
           {
             // prevent default electron link handling to allow selection, e.g. via double-click
@@ -175,7 +176,7 @@ export default class Term extends React.PureComponent<TermProps> {
       if (useWebGL) {
         this.term.loadAddon(new WebglAddon());
       }
-      if (props.disableLigatures !== true) {
+      if (props.disableLigatures !== true && !useWebGL) {
         this.term.loadAddon(new LigaturesAddon());
       }
       this.term.loadAddon(new Unicode11Addon());
@@ -254,13 +255,14 @@ export default class Term extends React.PureComponent<TermProps> {
 
   // intercepting paste event for any necessary processing of
   // clipboard data, if result is falsy, paste event continues
-  onWindowPaste = (e: any) => {
+  onWindowPaste = (e: Event) => {
     if (!this.props.isTermActive) return;
 
     const processed = processClipboard();
     if (processed) {
       e.preventDefault();
       e.stopPropagation();
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       (this.term as any)._core.handler(processed);
     }
   };

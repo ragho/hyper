@@ -29,17 +29,18 @@ const config: webpack.Configuration[] = [
       ]
     },
     plugins: [
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       new Copy({
         patterns: [
           {
             from: './app/*.html',
             globOptions: {ignore: ['**/node_modules/**']},
-            to: '[name].[ext]'
+            to: '[name][ext]'
           },
           {
             from: './app/*.json',
             globOptions: {ignore: ['**/node_modules/**']},
-            to: '[name].[ext]'
+            to: '[name][ext]'
           },
           {
             from: './app/yarn.lock',
@@ -48,7 +49,7 @@ const config: webpack.Configuration[] = [
           {
             from: './app/keymaps/*.json',
             globOptions: {ignore: ['**/node_modules/**']},
-            to: './keymaps/[name].[ext]'
+            to: './keymaps/[name][ext]'
           },
           {
             from: './app/static',
@@ -98,6 +99,7 @@ const config: webpack.Configuration[] = [
           NODE_ENV: JSON.stringify(nodeEnv)
         }
       }),
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       new Copy({
         patterns: [
           {

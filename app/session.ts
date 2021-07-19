@@ -5,6 +5,8 @@ import {getDecoratedEnv} from './plugins';
 import {productName, version} from './package.json';
 import * as config from './config';
 import {IPty, IWindowsPtyForkOptions, spawn as npSpawn} from 'node-pty';
+import {cliScriptPath} from './config/paths';
+import {dirname} from 'path';
 
 const createNodePtyError = () =>
   new Error(
@@ -118,6 +120,14 @@ export default class Session extends EventEmitter {
       envFromConfig
     );
 
+    // path to AppImage mount point is added to PATH environment variable automatically
+    // which conflicts with the cli
+    if (baseEnv['APPIMAGE'] && baseEnv['APPDIR']) {
+      baseEnv['PATH'] = [dirname(cliScriptPath)]
+        .concat((baseEnv['PATH'] || '').split(':').filter((val) => !val.startsWith(baseEnv['APPDIR'])))
+        .join(':');
+    }
+
     // Electron has a default value for process.env.GOOGLE_API_KEY
     // We don't want to leak this to the shell
     // See https://github.com/vercel/hyper/issues/696
@@ -177,7 +187,7 @@ please check the shell config: ${JSON.stringify({shell, shellArgs}, undefined, 2
 fallback to default shell config: ${JSON.stringify(defaultShellConfig, undefined, 2)}
 `;
           console.warn(msg);
-          this.batcher?.write(msg.replaceAll('\n', '\r\n') as any);
+          this.batcher?.write(msg.replace(/\n/g, '\r\n') as any);
           this.init({uid, rows, cols: columns, cwd, ...defaultShellConfig});
         } else {
           this.ended = true;

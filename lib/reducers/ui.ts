@@ -24,7 +24,7 @@ import {
   SESSION_SET_CWD
 } from '../constants/sessions';
 import {UPDATE_AVAILABLE} from '../constants/updater';
-import {uiState, HyperActions} from '../hyper';
+import {uiState, Mutable, IUiReducer} from '../hyper';
 
 const allowedCursorShapes = new Set(['BEAM', 'BLOCK', 'UNDERLINE']);
 const allowedCursorBlinkValues = new Set([true, false]);
@@ -33,7 +33,7 @@ const allowedHamburgerMenuValues = new Set([true, false]);
 const allowedWindowControlsValues = new Set([true, false, 'left']);
 
 // Populate `config-default.js` from this :)
-const initial: ImmutableType<uiState> = Immutable({
+const initial: uiState = Immutable<Mutable<uiState>>({
   cols: null,
   rows: null,
   scrollback: 1000,
@@ -57,7 +57,7 @@ const initial: ImmutableType<uiState> = Immutable({
   letterSpacing: 0,
   css: '',
   termCSS: '',
-  openAt: {} as Record<string, number>,
+  openAt: {},
   resizeAt: 0,
   colors: {
     black: '#000000',
@@ -77,7 +77,7 @@ const initial: ImmutableType<uiState> = Immutable({
     lightCyan: '#68FDFE',
     lightWhite: '#FFFFFF'
   },
-  activityMarkers: {} as Record<string, boolean>,
+  activityMarkers: {},
   notifications: {
     font: false,
     resize: false,
@@ -115,7 +115,7 @@ const initial: ImmutableType<uiState> = Immutable({
 
 const currentWindow = remote.getCurrentWindow();
 
-const reducer = (state = initial, action: HyperActions) => {
+const reducer: IUiReducer = (state = initial, action) => {
   let state_ = state;
   let isMax;
   switch (action.type) {
@@ -127,7 +127,7 @@ const reducer = (state = initial, action: HyperActions) => {
         // font size changed from the config
         .merge(
           (() => {
-            const ret: Immutable.DeepPartial<uiState> = {};
+            const ret: Immutable.DeepPartial<Mutable<uiState>> = {};
 
             if (config.scrollback) {
               ret.scrollback = config.scrollback;
@@ -304,12 +304,12 @@ const reducer = (state = initial, action: HyperActions) => {
 
     case SESSION_PTY_EXIT:
       state_ = state
-        .updateIn(['openAt'], (times: ImmutableType<any>) => {
+        .updateIn(['openAt'], (times: ImmutableType<Record<string, number>>) => {
           const times_ = times.asMutable();
           delete times_[action.uid];
           return times_;
         })
-        .updateIn(['activityMarkers'], (markers: ImmutableType<any>) => {
+        .updateIn(['activityMarkers'], (markers: ImmutableType<Record<string, boolean>>) => {
           const markers_ = markers.asMutable();
           delete markers_[action.uid];
           return markers_;
@@ -451,7 +451,5 @@ const reducer = (state = initial, action: HyperActions) => {
 
   return state_;
 };
-
-export type IUiReducer = typeof reducer;
 
 export default decorateUIReducer(reducer);
